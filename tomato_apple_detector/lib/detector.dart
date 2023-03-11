@@ -33,10 +33,10 @@ class _DetectorState extends State<Detector> {
 
   Future<void> selectImg() async {
     final img = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (img!.path != null) {
+    if (img?.path != null) {
       setState(() {
         isSetImg = true;
-        _img = File(img.path);
+        _img = File(img!.path);
       });
       predictImage(_img);
     }
@@ -64,7 +64,7 @@ class _DetectorState extends State<Detector> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Tomato/Apple Detector"),
+        title: const Text("Detect by Image"),
       ),
       body: Column(children: [
         (isSetImg)
