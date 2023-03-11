@@ -18,11 +18,12 @@ class _CamDetectionState extends State<CamDetection> {
   late List<CameraDescription> _cameras;
   late CameraController controller;
   late Future<void> futureController;
+  var isDetected = false;
 
   @override
   void initState() {
     super.initState();
-    futureController = initCamera();
+    initialize();
   }
 
   @override
@@ -31,10 +32,15 @@ class _CamDetectionState extends State<CamDetection> {
     controller.dispose();
   }
 
+  void initialize() async {
+    futureController = initCamera();
+  }
+
   Future<void> initCamera() async {
     _cameras = await availableCameras();
-    controller = CameraController(_cameras[0], ResolutionPreset.max);
-    controller.initialize().then((_) {
+    controller = CameraController(_cameras[0], ResolutionPreset.medium,
+        enableAudio: false);
+    await controller.initialize().then((_) {
       if (!mounted) {
         return;
       }
@@ -51,6 +57,20 @@ class _CamDetectionState extends State<CamDetection> {
         }
       }
     });
+
+    await loadModel();
+    controller.startImageStream((CameraImage image) {
+      if (isDetected) return;
+      setState(() => {isDetected = true});
+      try {
+        // await doSomethingWith(image)
+        predictImage(image);
+      } catch (e) {
+        // await handleExepction(e)
+      } finally {
+        setState(() => {isDetected = false});
+      }
+    });
   }
 
   loadModel() async {
@@ -58,15 +78,22 @@ class _CamDetectionState extends State<CamDetection> {
         model: 'assets/model_unquant.tflite', labels: 'assets/labels.txt');
   }
 
-  void predictImage(File img) async {
-    var output = await Tflite.runModelOnImage(
-        path: img.path,
-        numResults: 2,
-        threshold: 0.5,
-        imageMean: 127.5,
-        imageStd: 127.5);
+  void predictImage(CameraImage img) async {
+    var recognitions = await Tflite.runModelOnFrame(
+        bytesList: img.planes.map((plane) {
+          return plane.bytes;
+        }).toList(), // required
+        imageHeight: img.height,
+        imageWidth: img.width,
+        imageMean: 127.5, // defaults to 127.5
+        imageStd: 127.5, // defaults to 127.5
+        rotation: 90, // defaults to 90, Android only
+        numResults: 2, // defaults to 5
+        threshold: 0.1, // defaults to 0.1
+        asynch: true // defaults to true
+        );
     setState(() {
-      detectedOutput = output!;
+      detectedOutput = recognitions!;
     });
     // print("Result are: ${detectedOutput}");
   }
@@ -96,10 +123,12 @@ class _CamDetectionState extends State<CamDetection> {
                     color: Colors.redAccent,
                     width: double.infinity,
                     height: double.infinity,
-                    child: const Center(
+                    child: Center(
                         child: Text(
-                      "This is the output",
-                      style: TextStyle(
+                      (detectedOutput.isNotEmpty)
+                          ? "${detectedOutput[0]["label"].split(" ")[1]}: ${detectedOutput[0]["confidence"].toStringAsFixed(2)}"
+                          : "Capture an object",
+                      style: const TextStyle(
                           fontSize: 25,
                           fontWeight: FontWeight.w500,
                           color: Colors.white),
