@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tomato_apple_detector/camDetection.dart';
 import 'package:tomato_apple_detector/detector.dart';
 
 void main() {
@@ -54,6 +55,11 @@ class _MyHomePageState extends State<MyHomePage> {
         .push(MaterialPageRoute(builder: ((context) => const Detector())));
   }
 
+  void gotoCameraRoute() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: ((context) => const CamDetection())));
+  }
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -85,7 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             ElevatedButton(
-                onPressed: () => {},
+                onPressed: gotoCameraRoute,
                 style: ElevatedButton.styleFrom(
                     shape: const CircleBorder(),
                     padding: const EdgeInsets.all(10),
