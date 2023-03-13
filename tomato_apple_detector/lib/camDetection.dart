@@ -1,29 +1,26 @@
-import 'dart:io';
 import 'package:camera/camera.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/src/widgets/container.dart';
-import 'package:flutter/src/widgets/framework.dart';
 import 'package:tflite/tflite.dart';
 
 class CamDetection extends StatefulWidget {
-  const CamDetection({super.key});
-
+  CamDetection({super.key, required this.cameras});
+  List<CameraDescription> cameras;
   @override
   State<CamDetection> createState() => _CamDetectionState();
 }
 
 class _CamDetectionState extends State<CamDetection> {
   var detectedOutput = [];
-  late List<CameraDescription> _cameras;
   late CameraController controller;
   late Future<void> futureController;
   var isDetected = false;
+  var isCameraInitialize = false;
 
   @override
   void initState() {
     super.initState();
-    initialize();
+    initCamera();
+    //initializeModel();
   }
 
   @override
@@ -32,13 +29,24 @@ class _CamDetectionState extends State<CamDetection> {
     controller.dispose();
   }
 
-  void initialize() async {
-    futureController = initCamera();
+  void initializeModel() async {
+    await loadModel();
+    controller.startImageStream((CameraImage image) {
+      if (isDetected) return;
+      isDetected = true;
+      try {
+        // await doSomethingWith(image)
+        predictImage(image);
+      } catch (e) {
+        // await handleExepction(e)
+      } finally {
+        isDetected = false;
+      }
+    });
   }
 
-  Future<void> initCamera() async {
-    _cameras = await availableCameras();
-    controller = CameraController(_cameras[0], ResolutionPreset.medium,
+  void initCamera() async {
+    controller = CameraController(widget.cameras[0], ResolutionPreset.max,
         enableAudio: false);
     await controller.initialize().then((_) {
       if (!mounted) {
@@ -59,17 +67,16 @@ class _CamDetectionState extends State<CamDetection> {
     });
 
     await loadModel();
+
     controller.startImageStream((CameraImage image) {
       if (isDetected) return;
-      setState(() => {isDetected = true});
+      isDetected = true;
       try {
         // await doSomethingWith(image)
         predictImage(image);
       } catch (e) {
         // await handleExepction(e)
-      } finally {
-        setState(() => {isDetected = false});
-      }
+      } finally {}
     });
   }
 
@@ -79,7 +86,7 @@ class _CamDetectionState extends State<CamDetection> {
   }
 
   void predictImage(CameraImage img) async {
-    var recognitions = await Tflite.runModelOnFrame(
+    var recognition = await Tflite.runModelOnFrame(
         bytesList: img.planes.map((plane) {
           return plane.bytes;
         }).toList(), // required
@@ -89,12 +96,15 @@ class _CamDetectionState extends State<CamDetection> {
         imageStd: 127.5, // defaults to 127.5
         rotation: 90, // defaults to 90, Android only
         numResults: 2, // defaults to 5
-        threshold: 0.1, // defaults to 0.1
+        threshold: 0.5,
         asynch: true // defaults to true
         );
+    if (!mounted) return;
     setState(() {
-      detectedOutput = recognitions!;
+      detectedOutput = recognition!;
+      isDetected = false;
     });
+
     // print("Result are: ${detectedOutput}");
   }
 
@@ -106,17 +116,10 @@ class _CamDetectionState extends State<CamDetection> {
           children: [
             Expanded(
                 flex: 9,
-                child: FutureBuilder(
-                  future: futureController,
-                  builder: (context, snapshot) =>
-                      (snapshot.connectionState == ConnectionState.done)
-                          ? SizedBox(
-                              width: double.infinity,
-                              child: AspectRatio(
-                                  aspectRatio: 4,
-                                  child: CameraPreview(controller)))
-                          : const Center(child: CircularProgressIndicator()),
-                )),
+                child: SizedBox(
+                    width: double.infinity,
+                    child: AspectRatio(
+                        aspectRatio: 4, child: CameraPreview(controller)))),
             Expanded(
                 flex: 1,
                 child: Container(

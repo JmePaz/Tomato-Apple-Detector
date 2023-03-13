@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tomato_apple_detector/camDetection.dart';
 import 'package:tomato_apple_detector/detector.dart';
+import 'package:camera/camera.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations(
+      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+  final cameras = await availableCameras();
+  runApp(MyApp(cameras: cameras));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.cameras});
+
+  final List<CameraDescription> cameras;
 
   // This widget is the root of your application.
   @override
@@ -26,13 +34,13 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: "Tomato|Apple Detector"),
+      home: MyHomePage(title: "Tomato|Apple Detector", cameras: cameras),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({super.key, required this.title, required this.cameras});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -44,6 +52,7 @@ class MyHomePage extends StatefulWidget {
   // always marked "final".
 
   final String title;
+  final List<CameraDescription> cameras;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -56,8 +65,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void gotoCameraRoute() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: ((context) => const CamDetection())));
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: ((context) => CamDetection(cameras: widget.cameras))));
   }
 
   @override
